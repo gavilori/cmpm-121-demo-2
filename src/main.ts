@@ -26,14 +26,15 @@ const cursor = { active: false, x: 0, y: 0 };
 
 const evt = new Event("drawing-changed");
 
-const lines: Point[][] = [];
-
 interface Point {
   x: number;
   y: number;
 }
 
-let currentLine: Point[];
+const lines: Point[][] = [];
+const redoLines: Point[][] = [];
+
+let currentLine: Point[] = [];
 
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
@@ -43,6 +44,7 @@ canvas.addEventListener("mousedown", (e) => {
   currentLine = [];
   lines.push(currentLine);
   currentLine.push({ x: cursor.x, y: cursor.y });
+  redoLines.splice(0, redoLines.length);
   canvas.dispatchEvent(evt);
 });
 
@@ -77,8 +79,11 @@ canvas.addEventListener("drawing-changed", () => {
   }
 });
 
-const br = document.createElement("br");
-app.append(br);
+//FIXME: cleaner way to separate canvas and buttons?
+const br1 = document.createElement("br");
+const br2 = document.createElement("br");
+app.append(br1);
+app.append(br2);
 
 const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
@@ -88,4 +93,29 @@ app.append(clearButton);
 clearButton.addEventListener("click", () => {
   lines.splice(0, lines.length);
   canvas.dispatchEvent(evt);
+});
+
+const undoButton = document.createElement("button");
+undoButton.innerHTML = "Undo";
+undoButton.style.filter = "drop-shadow(6px 6px black)";
+app.append(undoButton);
+
+//FIXME: lines.pop() and redoLines.pop() need exclamation mark?
+undoButton.addEventListener("click", () => {
+  if (lines.length > 0) {
+    redoLines.push(lines.pop()!);
+    canvas.dispatchEvent(evt);
+  }
+});
+
+const redoButton = document.createElement("button");
+redoButton.innerHTML = "Redo";
+redoButton.style.filter = "drop-shadow(6px 6px black)";
+app.append(redoButton);
+
+redoButton.addEventListener("click", () => {
+  if (redoLines.length > 0) {
+    lines.push(redoLines.pop()!);
+    canvas.dispatchEvent(evt);
+  }
 });
