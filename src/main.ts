@@ -25,6 +25,12 @@ const ctx = canvas.getContext("2d");
 const commands: LineCommand[] = [];
 const redoCommands: LineCommand[] = [];
 
+enum Thicknesses {
+  thin = 1,
+  thick = 4,
+}
+let markerThickness: number = Thicknesses.thin;
+
 const bus = new EventTarget();
 
 function notify(name: string) {
@@ -52,13 +58,16 @@ tick();
 
 class LineCommand {
   points: Point[] = [];
+  thickness: number = Thicknesses.thin;
 
-  constructor(x: number, y: number) {
+  constructor(x: number, y: number, thickness: number) {
     this.points = [{ x, y }];
+    this.thickness = thickness;
   }
 
   display(ctx: CanvasRenderingContext2D) {
-    // ctx.strokeStyle = "black";
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = this.thickness;
     ctx.beginPath();
     const { x, y } = this.points[0];
     ctx.moveTo(x, y);
@@ -76,7 +85,7 @@ class LineCommand {
 let currentLineCommand: LineCommand | null = null;
 
 canvas.addEventListener("mousedown", (e) => {
-  currentLineCommand = new LineCommand(e.offsetX, e.offsetY);
+  currentLineCommand = new LineCommand(e.offsetX, e.offsetY, markerThickness);
   commands.push(currentLineCommand);
   redoCommands.splice(0, redoCommands.length);
   notify("drawing-changed");
@@ -96,8 +105,30 @@ canvas.addEventListener("mouseup", () => {
 });
 
 const br1 = document.createElement("br");
-const br2 = document.createElement("br");
 app.append(br1);
+
+const thinButton = document.createElement("button");
+thinButton.innerHTML = "Thin";
+thinButton.style.filter = "drop-shadow(6px 6px black)";
+thinButton.style.backgroundColor = "#375d45";
+app.append(thinButton);
+thinButton.addEventListener("click", () => {
+  markerThickness = Thicknesses.thin;
+  thinButton.style.backgroundColor = "#375d45";
+  thickButton.style.backgroundColor = ``;
+});
+
+const thickButton = document.createElement("button");
+thickButton.innerHTML = "Thick";
+thickButton.style.filter = "drop-shadow(6px 6px black)";
+app.append(thickButton);
+thickButton.addEventListener("click", () => {
+  markerThickness = Thicknesses.thick;
+  thickButton.style.backgroundColor = "#375d45";
+  thinButton.style.backgroundColor = "";
+});
+
+const br2 = document.createElement("br");
 app.append(br2);
 
 const clearButton = document.createElement("button");
