@@ -23,8 +23,8 @@ app.append(canvas);
 
 const ctx = canvas.getContext("2d");
 
-const commands: LineCommand[] = [];
-const redoCommands: LineCommand[] = [];
+const commands: (LineCommand | StickerCommand)[] = [];
+const redoCommands: (LineCommand | StickerCommand)[] = [];
 
 let toolCommand: ToolCommand | null = null;
 
@@ -58,6 +58,13 @@ function tick() {
 }
 tick();
 
+enum Tools {
+  marker,
+  sticker,
+}
+
+let currentTool = Tools.marker;
+
 const thicknessThin = 1;
 const thicknessThick = 4;
 let markerThickness: number = thicknessThin;
@@ -88,31 +95,46 @@ class LineCommand {
   }
 }
 
-const toolThinOffsetX = -5;
-const toolThinOffsetY = 0;
-const toolThickOffsetX = -10;
-const toolThickOffsetY = 3;
+let currentSticker: string | null = null;
 
-class ToolCommand {
-  x: number;
-  y: number;
-  constructor(x: number, y: number) {
-    this.x = x;
-    this.y = y;
+class StickerCommand {
+  points: Point[] = [];
+  sticker: string;
+
+  constructor(x: number, y: number, sticker: string) {
+    this.points = [{ x, y }];
+    this.sticker = sticker;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
-    if (markerThickness == thicknessThin) {
-      ctx.font = "16px monospace";
-      ctx.fillText(".", this.x + toolThinOffsetX, this.y + toolThinOffsetY);
-    } else if (markerThickness == thicknessThick) {
-      ctx.font = "32px monospace";
-      ctx.fillText(".", this.x + toolThickOffsetX, this.y + toolThickOffsetY);
+  display(ctx: CanvasRenderingContext2D) {
+    for (const { x, y } of this.points) {
+      ctx.fillText(this.sticker, x, y);
     }
   }
 }
 
-let currentLineCommand: LineCommand | null = null;
+class ToolCommand {
+  x: number;
+  y: number;
+  mode: Tools;
+  constructor(x: number, y: number, mode: Tools) {
+    this.x = x;
+    this.y = y;
+    this.mode = mode;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    if (this.mode == Tools.marker) {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, markerThickness / 2, 0, 2 * Math.PI);
+      ctx.fill();
+    } else if (this.mode == Tools.sticker && currentSticker) {
+      ctx.fillText(currentSticker, this.x, this.y);
+    }
+  }
+}
+
+let currentCommand: LineCommand | StickerCommand | null = null;
 
 canvas.addEventListener("mouseout", () => {
   toolCommand = null;
@@ -120,58 +142,125 @@ canvas.addEventListener("mouseout", () => {
 });
 
 canvas.addEventListener("mouseenter", (e) => {
-  toolCommand = new ToolCommand(e.offsetX, e.offsetY);
+  toolCommand = new ToolCommand(e.offsetX, e.offsetY, currentTool);
   notify("tool-moved");
 });
 
 canvas.addEventListener("mousedown", (e) => {
-  currentLineCommand = new LineCommand(e.offsetX, e.offsetY, markerThickness);
-  commands.push(currentLineCommand);
+  currentCommand = new LineCommand(e.offsetX, e.offsetY, markerThickness);
+  if (currentTool == Tools.sticker && currentSticker) {
+    currentCommand = new StickerCommand(e.offsetX, e.offsetY, currentSticker);
+  }
+  commands.push(currentCommand);
   redoCommands.splice(0, redoCommands.length);
   notify("drawing-changed");
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  toolCommand = new ToolCommand(e.offsetX, e.offsetY);
+  toolCommand = new ToolCommand(e.offsetX, e.offsetY, currentTool);
   notify("tool-moved");
 
   if (e.buttons == 1) {
-    currentLineCommand!.points.push({ x: e.offsetX, y: e.offsetY });
-    notify("drawing-changed");
+    if (currentTool == Tools.marker) {
+      currentCommand!.points.push({ x: e.offsetX, y: e.offsetY });
+      notify("drawing-changed");
+    } else if (currentTool == Tools.sticker) {
+      currentCommand!.points[0] = { x: e.offsetX, y: e.offsetY };
+    }
   }
 });
 
 canvas.addEventListener("mouseup", () => {
-  currentLineCommand = null;
+  currentCommand = null;
   notify("drawing-changed");
 });
 
-const br1 = document.createElement("br");
-app.append(br1);
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
+
+const toolButtons: HTMLButtonElement[] = [];
 
 const thinButton = document.createElement("button");
 thinButton.innerHTML = "Thin";
 thinButton.style.filter = "drop-shadow(6px 6px black)";
 thinButton.style.backgroundColor = "#375d45";
 app.append(thinButton);
+toolButtons.push(thinButton);
+
 thinButton.addEventListener("click", () => {
+  currentTool = Tools.marker;
   markerThickness = thicknessThin;
+  toolButtons.forEach((button) => {
+    button.style.backgroundColor = "";
+  });
   thinButton.style.backgroundColor = "#375d45";
-  thickButton.style.backgroundColor = ``;
 });
 
 const thickButton = document.createElement("button");
 thickButton.innerHTML = "Thick";
 thickButton.style.filter = "drop-shadow(6px 6px black)";
 app.append(thickButton);
+toolButtons.push(thickButton);
+
 thickButton.addEventListener("click", () => {
+  currentTool = Tools.marker;
   markerThickness = thicknessThick;
+  toolButtons.forEach((button) => {
+    button.style.backgroundColor = "";
+  });
   thickButton.style.backgroundColor = "#375d45";
-  thinButton.style.backgroundColor = "";
 });
 
-const br2 = document.createElement("br");
-app.append(br2);
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
+
+const stickerButtonA = document.createElement("button");
+stickerButtonA.innerHTML = "🤣";
+stickerButtonA.style.filter = "drop-shadow(6px 6px black)";
+app.append(stickerButtonA);
+toolButtons.push(stickerButtonA);
+
+stickerButtonA.addEventListener("click", () => {
+  currentTool = Tools.sticker;
+  toolButtons.forEach((button) => {
+    button.style.backgroundColor = "";
+  });
+  stickerButtonA.style.backgroundColor = "#375d45";
+  currentSticker = "🤣";
+});
+
+const stickerButtonB = document.createElement("button");
+stickerButtonB.innerHTML = "🤷‍♂️";
+stickerButtonB.style.filter = "drop-shadow(6px 6px black)";
+app.append(stickerButtonB);
+toolButtons.push(stickerButtonB);
+
+stickerButtonB.addEventListener("click", () => {
+  currentTool = Tools.sticker;
+  toolButtons.forEach((button) => {
+    button.style.backgroundColor = "";
+  });
+  stickerButtonB.style.backgroundColor = "#375d45";
+  currentSticker = "🤷‍♂️";
+});
+
+const stickerButtonC = document.createElement("button");
+stickerButtonC.innerHTML = "👀";
+stickerButtonC.style.filter = "drop-shadow(6px 6px black)";
+app.append(stickerButtonC);
+toolButtons.push(stickerButtonC);
+
+stickerButtonC.addEventListener("click", () => {
+  currentTool = Tools.sticker;
+  toolButtons.forEach((button) => {
+    button.style.backgroundColor = "";
+  });
+  stickerButtonC.style.backgroundColor = "#375d45";
+  currentSticker = "👀";
+});
+
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
 
 const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
