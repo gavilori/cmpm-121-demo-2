@@ -22,64 +22,79 @@ app.append(canvas);
 
 const ctx = canvas.getContext("2d");
 
-const cursor = { active: false, x: 0, y: 0 };
+const commands: LineCommand[] = [];
+const redoCommands: LineCommand[] = [];
 
-const evt = new Event("drawing-changed");
+const bus = new EventTarget();
+
+function notify(name: string) {
+  bus.dispatchEvent(new Event(name));
+}
+
+function redraw() {
+  ctx?.clearRect(0, 0, canvas.width, canvas.height);
+
+  commands.forEach((cmd) => cmd.display(ctx!));
+}
+
+bus.addEventListener("drawing-changed", redraw);
 
 interface Point {
   x: number;
   y: number;
 }
 
-const lines: Point[][] = [];
-const redoLines: Point[][] = [];
+function tick() {
+  redraw();
+  requestAnimationFrame(tick);
+}
+tick();
 
-let currentLine: Point[] = [];
+class LineCommand {
+  points: Point[] = [];
+
+  constructor(x: number, y: number) {
+    this.points = [{ x, y }];
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    // ctx.strokeStyle = "black";
+    ctx.beginPath();
+    const { x, y } = this.points[0];
+    ctx.moveTo(x, y);
+    for (const { x, y } of this.points) {
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  grow(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+}
+
+let currentLineCommand: LineCommand | null = null;
 
 canvas.addEventListener("mousedown", (e) => {
-  cursor.active = true;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
-
-  currentLine = [];
-  lines.push(currentLine);
-  currentLine.push({ x: cursor.x, y: cursor.y });
-  redoLines.splice(0, redoLines.length);
-  canvas.dispatchEvent(evt);
+  currentLineCommand = new LineCommand(e.offsetX, e.offsetY);
+  commands.push(currentLineCommand);
+  redoCommands.splice(0, redoCommands.length);
+  notify("drawing-changed");
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (cursor.active) {
-    cursor.x = e.offsetX;
-    cursor.y = e.offsetY;
-    currentLine.push({ x: cursor.x, y: cursor.y });
-    canvas.dispatchEvent(evt);
+  if (e.buttons == 1) {
+    currentLineCommand!.points.push({ x: e.offsetX, y: e.offsetY });
+    notify("drawing-changed");
   }
 });
 
 canvas.addEventListener("mouseup", () => {
-  cursor.active = false;
-  currentLine = [];
+  currentLineCommand = null;
 
-  canvas.dispatchEvent(evt);
+  notify("drawing-changed");
 });
 
-canvas.addEventListener("drawing-changed", () => {
-  ctx?.clearRect(0, 0, canvas.width, canvas.height);
-  for (const line of lines) {
-    if (line.length > 1) {
-      ctx?.beginPath();
-      const { x, y } = line[0];
-      ctx?.moveTo(x, y);
-      for (const { x, y } of line) {
-        ctx?.lineTo(x, y);
-      }
-      ctx?.stroke();
-    }
-  }
-});
-
-//FIXME: cleaner way to separate canvas and buttons?
 const br1 = document.createElement("br");
 const br2 = document.createElement("br");
 app.append(br1);
@@ -91,8 +106,8 @@ clearButton.style.filter = "drop-shadow(6px 6px black)";
 app.append(clearButton);
 
 clearButton.addEventListener("click", () => {
-  lines.splice(0, lines.length);
-  canvas.dispatchEvent(evt);
+  commands.splice(0, commands.length);
+  notify("drawing-changed");
 });
 
 const undoButton = document.createElement("button");
@@ -100,11 +115,10 @@ undoButton.innerHTML = "Undo";
 undoButton.style.filter = "drop-shadow(6px 6px black)";
 app.append(undoButton);
 
-//FIXME: lines.pop() and redoLines.pop() need exclamation mark?
 undoButton.addEventListener("click", () => {
-  if (lines.length > 0) {
-    redoLines.push(lines.pop()!);
-    canvas.dispatchEvent(evt);
+  if (commands.length > 0) {
+    redoCommands.push(commands.pop()!);
+    notify("drawing-changed");
   }
 });
 
@@ -114,8 +128,8 @@ redoButton.style.filter = "drop-shadow(6px 6px black)";
 app.append(redoButton);
 
 redoButton.addEventListener("click", () => {
-  if (redoLines.length > 0) {
-    lines.push(redoLines.pop()!);
-    canvas.dispatchEvent(evt);
+  if (redoCommands.length > 0) {
+    commands.push(redoCommands.pop()!);
+    notify("drawing-changed");
   }
 });
