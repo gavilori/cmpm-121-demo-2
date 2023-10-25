@@ -18,6 +18,7 @@ canvas.style.border = "solid 2pt black";
 canvas.style.backgroundColor = "white";
 canvas.style.borderRadius = "15px";
 canvas.style.filter = "drop-shadow(6px 6px black)";
+canvas.style.cursor = "none";
 app.append(canvas);
 
 const ctx = canvas.getContext("2d");
@@ -25,11 +26,7 @@ const ctx = canvas.getContext("2d");
 const commands: LineCommand[] = [];
 const redoCommands: LineCommand[] = [];
 
-enum Thicknesses {
-  thin = 1,
-  thick = 4,
-}
-let markerThickness: number = Thicknesses.thin;
+let toolCommand: ToolCommand | null = null;
 
 const bus = new EventTarget();
 
@@ -44,6 +41,7 @@ function redraw() {
 }
 
 bus.addEventListener("drawing-changed", redraw);
+bus.addEventListener("tool-moved", redraw);
 
 interface Point {
   x: number;
@@ -53,12 +51,20 @@ interface Point {
 function tick() {
   redraw();
   requestAnimationFrame(tick);
+
+  if (toolCommand) {
+    toolCommand.draw(ctx!);
+  }
 }
 tick();
 
+const thicknessThin = 1;
+const thicknessThick = 4;
+let markerThickness: number = thicknessThin;
+
 class LineCommand {
   points: Point[] = [];
-  thickness: number = Thicknesses.thin;
+  thickness: number = thicknessThin;
 
   constructor(x: number, y: number, thickness: number) {
     this.points = [{ x, y }];
@@ -82,7 +88,41 @@ class LineCommand {
   }
 }
 
+const toolThinOffsetX = -5;
+const toolThinOffsetY = 0;
+const toolThickOffsetX = -10;
+const toolThickOffsetY = 3;
+
+class ToolCommand {
+  x: number;
+  y: number;
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    if (markerThickness == thicknessThin) {
+      ctx.font = "16px monospace";
+      ctx.fillText(".", this.x + toolThinOffsetX, this.y + toolThinOffsetY);
+    } else if (markerThickness == thicknessThick) {
+      ctx.font = "32px monospace";
+      ctx.fillText(".", this.x + toolThickOffsetX, this.y + toolThickOffsetY);
+    }
+  }
+}
+
 let currentLineCommand: LineCommand | null = null;
+
+canvas.addEventListener("mouseout", () => {
+  toolCommand = null;
+  notify("tool-moved");
+});
+
+canvas.addEventListener("mouseenter", (e) => {
+  toolCommand = new ToolCommand(e.offsetX, e.offsetY);
+  notify("tool-moved");
+});
 
 canvas.addEventListener("mousedown", (e) => {
   currentLineCommand = new LineCommand(e.offsetX, e.offsetY, markerThickness);
@@ -92,6 +132,9 @@ canvas.addEventListener("mousedown", (e) => {
 });
 
 canvas.addEventListener("mousemove", (e) => {
+  toolCommand = new ToolCommand(e.offsetX, e.offsetY);
+  notify("tool-moved");
+
   if (e.buttons == 1) {
     currentLineCommand!.points.push({ x: e.offsetX, y: e.offsetY });
     notify("drawing-changed");
@@ -100,7 +143,6 @@ canvas.addEventListener("mousemove", (e) => {
 
 canvas.addEventListener("mouseup", () => {
   currentLineCommand = null;
-
   notify("drawing-changed");
 });
 
@@ -113,7 +155,7 @@ thinButton.style.filter = "drop-shadow(6px 6px black)";
 thinButton.style.backgroundColor = "#375d45";
 app.append(thinButton);
 thinButton.addEventListener("click", () => {
-  markerThickness = Thicknesses.thin;
+  markerThickness = thicknessThin;
   thinButton.style.backgroundColor = "#375d45";
   thickButton.style.backgroundColor = ``;
 });
@@ -123,7 +165,7 @@ thickButton.innerHTML = "Thick";
 thickButton.style.filter = "drop-shadow(6px 6px black)";
 app.append(thickButton);
 thickButton.addEventListener("click", () => {
-  markerThickness = Thicknesses.thick;
+  markerThickness = thicknessThick;
   thickButton.style.backgroundColor = "#375d45";
   thinButton.style.backgroundColor = "";
 });
