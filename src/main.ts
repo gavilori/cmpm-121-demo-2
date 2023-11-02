@@ -70,7 +70,7 @@ enum Tools {
 let currentTool = Tools.marker;
 
 const thicknessThin = 1;
-const thicknessThick = 4;
+const thicknessThick = 5;
 let markerThickness: number = thicknessThin;
 
 class LineCommand {
@@ -112,7 +112,7 @@ class StickerCommand {
 
   display(ctx: CanvasRenderingContext2D) {
     for (const { x, y } of this.points) {
-      ctx.font = "16px monospace";
+      ctx.font = "24px monospace";
       ctx.fillText(this.sticker, x, y);
     }
   }
@@ -134,7 +134,7 @@ class ToolCommand {
       ctx.arc(this.x, this.y, markerThickness / 2, 0, 2 * Math.PI);
       ctx.fill();
     } else if (this.mode == Tools.sticker && currentSticker) {
-      ctx.font = "16px monospace";
+      ctx.font = "24px monospace";
       ctx.fillText(currentSticker, this.x, this.y);
     }
   }
@@ -220,14 +220,23 @@ const toolButtons: ToolButton[] = [
   },
 ];
 
+const toolHtmlButtons: HTMLButtonElement[] = [];
+
 toolButtons.forEach((button) => {
   button.htmlButton = document.createElement("button");
   button.htmlButton.innerHTML = button.name;
   button.htmlButton.style.filter = "drop-shadow(6px 6px black)";
   app.append(button.htmlButton);
+  toolHtmlButtons.push(button.htmlButton);
 
   button.htmlButton.addEventListener("click", () => {
+    toolHtmlButtons.forEach((button) => {
+      button.style.backgroundColor = "";
+    });
+    button.htmlButton!.style.backgroundColor = "green";
+
     currentTool = button.tool;
+
     if (button.thickness) {
       markerThickness = button.thickness;
     }
@@ -244,8 +253,14 @@ const customButton = document.createElement("button");
 customButton.innerHTML = "Custom Sticker";
 customButton.style.filter = "drop-shadow(6px 6px black)";
 app.append(customButton);
+toolHtmlButtons.push(customButton);
 
 customButton.addEventListener("click", () => {
+  toolHtmlButtons.forEach((button) => {
+    button.style.backgroundColor = "";
+  });
+  customButton.style.backgroundColor = "green";
+
   currentTool = Tools.sticker;
   const text = prompt("Custom sticker text", "");
   currentSticker = text;
