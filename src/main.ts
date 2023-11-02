@@ -1,3 +1,7 @@
+/*
+Random Color Generator Code from: https://stackoverflow.com/questions/46592120/how-to-set-unchanging-transparency-on-a-random-hex-color-generator 
+*/
+
 import "./style.css";
 
 const app: HTMLDivElement = document.querySelector("#app")!;
@@ -69,21 +73,26 @@ enum Tools {
 
 let currentTool = Tools.marker;
 
-const thicknessThin = 1;
-const thicknessThick = 5;
+const thicknessThin = 2;
+const thicknessThick = 6;
 let markerThickness: number = thicknessThin;
+let markerColor = "black";
 
 class LineCommand {
   points: Point[] = [];
   thickness: number = thicknessThin;
+  color = "black";
 
-  constructor(x: number, y: number, thickness: number) {
+  constructor(x: number, y: number, thickness: number, color?: string) {
     this.points = [{ x, y }];
     this.thickness = thickness;
+    if (color) {
+      this.color = color;
+    }
   }
 
   display(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = "black";
+    ctx.strokeStyle = this.color;
     ctx.lineWidth = this.thickness;
     ctx.beginPath();
     const { x, y } = this.points[0];
@@ -130,6 +139,7 @@ class ToolCommand {
 
   draw(ctx: CanvasRenderingContext2D) {
     if (this.mode == Tools.marker) {
+      ctx.fillStyle = markerColor;
       ctx.beginPath();
       ctx.arc(this.x, this.y, markerThickness / 2, 0, 2 * Math.PI);
       ctx.fill();
@@ -153,9 +163,15 @@ canvas.addEventListener("mouseenter", (e) => {
 });
 
 canvas.addEventListener("mousedown", (e) => {
-  currentCommand = new LineCommand(e.offsetX, e.offsetY, markerThickness);
-  if (currentTool == Tools.sticker && currentSticker) {
-    currentCommand = new StickerCommand(e.offsetX, e.offsetY, currentSticker);
+  if (currentTool == Tools.marker) {
+    currentCommand = new LineCommand(
+      e.offsetX,
+      e.offsetY,
+      markerThickness,
+      markerColor
+    );
+  } else {
+    currentCommand = new StickerCommand(e.offsetX, e.offsetY, currentSticker!);
   }
   commands.push(currentCommand);
   redoCommands.splice(0, redoCommands.length);
@@ -243,6 +259,13 @@ toolButtons.forEach((button) => {
     if (button.sticker) {
       currentSticker = button.sticker;
     }
+    const randomColor =
+      Math.floor(Math.random() * 255).toString() +
+      "," +
+      Math.floor(Math.random() * 255).toString() +
+      "," +
+      Math.floor(Math.random() * 255).toString();
+    markerColor = `rgba(${randomColor}, 1)`;
   });
 });
 
