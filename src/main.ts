@@ -108,6 +108,7 @@ class StickerCommand {
 
   display(ctx: CanvasRenderingContext2D) {
     for (const { x, y } of this.points) {
+      ctx.font = "16px monospace";
       ctx.fillText(this.sticker, x, y);
     }
   }
@@ -129,6 +130,7 @@ class ToolCommand {
       ctx.arc(this.x, this.y, markerThickness / 2, 0, 2 * Math.PI);
       ctx.fill();
     } else if (this.mode == Tools.sticker && currentSticker) {
+      ctx.font = "16px monospace";
       ctx.fillText(currentSticker, this.x, this.y);
     }
   }
@@ -178,85 +180,72 @@ canvas.addEventListener("mouseup", () => {
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
-const toolButtons: HTMLButtonElement[] = [];
+interface ToolButton {
+  name: string;
+  tool: Tools;
+  thickness?: number;
+  sticker?: string;
+  htmlButton?: HTMLButtonElement;
+}
 
-const thinButton = document.createElement("button");
-thinButton.innerHTML = "Thin";
-thinButton.style.filter = "drop-shadow(6px 6px black)";
-thinButton.style.backgroundColor = "#375d45";
-app.append(thinButton);
-toolButtons.push(thinButton);
+const toolButtons: ToolButton[] = [
+  {
+    name: "Thin",
+    tool: Tools.marker,
+    thickness: thicknessThin,
+  },
+  {
+    name: "Thick",
+    tool: Tools.marker,
+    thickness: thicknessThick,
+  },
+  {
+    name: "🤣",
+    tool: Tools.sticker,
+    sticker: "🤣",
+  },
+  {
+    name: "🤷‍♂️",
+    tool: Tools.sticker,
+    sticker: "🤷‍♂️",
+  },
+  {
+    name: "👀",
+    tool: Tools.sticker,
+    sticker: "👀",
+  },
+];
 
-thinButton.addEventListener("click", () => {
-  currentTool = Tools.marker;
-  markerThickness = thicknessThin;
-  toolButtons.forEach((button) => {
-    button.style.backgroundColor = "";
+toolButtons.forEach((button) => {
+  button.htmlButton = document.createElement("button");
+  button.htmlButton.innerHTML = button.name;
+  button.htmlButton.style.filter = "drop-shadow(6px 6px black)";
+  app.append(button.htmlButton);
+
+  button.htmlButton.addEventListener("click", () => {
+    currentTool = button.tool;
+    if (button.thickness) {
+      markerThickness = button.thickness;
+    }
+    if (button.sticker) {
+      currentSticker = button.sticker;
+    }
   });
-  thinButton.style.backgroundColor = "#375d45";
 });
-
-const thickButton = document.createElement("button");
-thickButton.innerHTML = "Thick";
-thickButton.style.filter = "drop-shadow(6px 6px black)";
-app.append(thickButton);
-toolButtons.push(thickButton);
-
-thickButton.addEventListener("click", () => {
-  currentTool = Tools.marker;
-  markerThickness = thicknessThick;
-  toolButtons.forEach((button) => {
-    button.style.backgroundColor = "";
-  });
-  thickButton.style.backgroundColor = "#375d45";
-});
+// const toolButtons: HTMLButtonElement[] = [];
 
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
-const stickerButtonA = document.createElement("button");
-stickerButtonA.innerHTML = "🤣";
-stickerButtonA.style.filter = "drop-shadow(6px 6px black)";
-app.append(stickerButtonA);
-toolButtons.push(stickerButtonA);
+const customButton = document.createElement("button");
+customButton.innerHTML = "Custom Sticker";
+customButton.style.filter = "drop-shadow(6px 6px black)";
+app.append(customButton);
 
-stickerButtonA.addEventListener("click", () => {
+customButton.addEventListener("click", () => {
   currentTool = Tools.sticker;
-  toolButtons.forEach((button) => {
-    button.style.backgroundColor = "";
-  });
-  stickerButtonA.style.backgroundColor = "#375d45";
-  currentSticker = "🤣";
-});
-
-const stickerButtonB = document.createElement("button");
-stickerButtonB.innerHTML = "🤷‍♂️";
-stickerButtonB.style.filter = "drop-shadow(6px 6px black)";
-app.append(stickerButtonB);
-toolButtons.push(stickerButtonB);
-
-stickerButtonB.addEventListener("click", () => {
-  currentTool = Tools.sticker;
-  toolButtons.forEach((button) => {
-    button.style.backgroundColor = "";
-  });
-  stickerButtonB.style.backgroundColor = "#375d45";
-  currentSticker = "🤷‍♂️";
-});
-
-const stickerButtonC = document.createElement("button");
-stickerButtonC.innerHTML = "👀";
-stickerButtonC.style.filter = "drop-shadow(6px 6px black)";
-app.append(stickerButtonC);
-toolButtons.push(stickerButtonC);
-
-stickerButtonC.addEventListener("click", () => {
-  currentTool = Tools.sticker;
-  toolButtons.forEach((button) => {
-    button.style.backgroundColor = "";
-  });
-  stickerButtonC.style.backgroundColor = "#375d45";
-  currentSticker = "👀";
+  const text = prompt("Custom sticker text", "");
+  currentSticker = text;
 });
 
 app.append(document.createElement("br"));
