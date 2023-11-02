@@ -34,14 +34,18 @@ function notify(name: string) {
   bus.dispatchEvent(new Event(name));
 }
 
-function redraw() {
-  ctx?.clearRect(0, 0, canvas.width, canvas.height);
+function redraw(context: CanvasRenderingContext2D) {
+  context?.clearRect(0, 0, canvas.width, canvas.height);
 
-  commands.forEach((cmd) => cmd.display(ctx!));
+  commands.forEach((cmd) => cmd.display(context));
 }
 
-bus.addEventListener("drawing-changed", redraw);
-bus.addEventListener("tool-moved", redraw);
+bus.addEventListener("drawing-changed", () => {
+  redraw(ctx!);
+});
+bus.addEventListener("tool-moved", () => {
+  redraw(ctx!);
+});
 
 interface Point {
   x: number;
@@ -49,7 +53,7 @@ interface Point {
 }
 
 function tick() {
-  redraw();
+  redraw(ctx!);
   requestAnimationFrame(tick);
 
   if (toolCommand) {
@@ -232,7 +236,6 @@ toolButtons.forEach((button) => {
     }
   });
 });
-// const toolButtons: HTMLButtonElement[] = [];
 
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
@@ -283,4 +286,26 @@ redoButton.addEventListener("click", () => {
     commands.push(redoCommands.pop()!);
     notify("drawing-changed");
   }
+});
+
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
+
+const exportButton = document.createElement("button");
+exportButton.innerHTML = "Export";
+exportButton.style.filter = "drop-shadow(6px 6px black)";
+app.append(exportButton);
+
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+  const exportCtx = exportCanvas.getContext("2d");
+  exportCtx?.scale(4, 4);
+  redraw(exportCtx!);
+
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
 });
